@@ -19,7 +19,7 @@ model_name_1 = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 model_name_2 = "GreenHalo/Llama-3.1-8B-Instruct-GPTQ-8bit"
 model_name_3 = "GreenHalo/Llama-3.1-8B-Instruct-GPTQ-4bit"
 
-model_name = model_name_2
+model_name = model_name_1
 
 # 配置超参数
 # quantization_config = BitsAndBytesConfig(load_in_4bit=True)
