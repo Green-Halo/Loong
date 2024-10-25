@@ -14,7 +14,7 @@ class LLAMA:
         self.search_options = {name: getattr(self, name) for name in ['do_sample', 'max_length', 'min_length', 'top_p', 'top_k', 'temperature', 'repetition_penalty'] if hasattr(self, name)}
         self.params.set_search_options(**self.search_options)
         
-    def run(self, chat_template, prompts):
+    def run(self, chat_template, prompt):
         if chat_template.count('{') != 1 or chat_template.count('}') != 1:
             print("Error, chat template must have exactly one pair of curly braces, e.g., 'Prompt: {input}'")
             exit(1)
@@ -52,13 +52,13 @@ datasets = {}
 for task in glue_tasks:
     if task == "mnli":
         # 加载 validation_matched 和 validation_mismatched，并将它们合并
-        dataset_matched = load_dataset("glue", task, split="validation_matched")
-        dataset_mismatched = load_dataset("glue", task, split="validation_mismatched")
+        dataset_matched = load_dataset("glue", task, split="validation_matched[:1%]")
+        dataset_mismatched = load_dataset("glue", task, split="validation_mismatched[:1%]")
         # 使用 concatenate_datasets 方法合并两个数据集
         datasets[task] = concatenate_datasets([dataset_matched, dataset_mismatched])
     else:
         # 其他任务加载 validation 集
-        datasets[task] = load_dataset("glue", task, split="validation")
+        datasets[task] = load_dataset("glue", task, split="validation[:2%]")
 
 datas = defaultdict(list)
 
@@ -96,43 +96,43 @@ for key in glue_tasks:
     if key == "sst2":
         template[key] = """
         Prompt: "{input}"
-        Instruct: Please determine the sentiment of this above sentence in Prompt. The options are: 0 if the sentence is negative. 1 if the sentence is positive.          No analyses or explanations.Only respond with 0 or 1.
+        Instruct: Answer as less as possible. Please determine the sentiment of this above sentence in Prompt. The options are: 0 if the sentence is negative. 1 if the sentence is positive.          No analyses or explanations.Only respond with 0 or 1.
         """
     if key == "mrpc":
         template[key] = """
         Prompt: "{input}"
-        Instruct: Please determine whether the two sentences above in Prompt are equivalent, and return 1 if they are, or 0 if they are not.       No analyses or explanations.Only respond with 0 or 1.
+        Instruct: Answer as less as possible. Please determine whether the two sentences above in Prompt are equivalent, and return 1 if they are, or 0 if they are not.       No analyses or explanations.Only respond with 0 or 1.
         """
     elif key == "qqp":
         template[key] = """
         Prompt: "{input}"
-        Instruct: Please determine whether a pair of questions above in Prompt are semantically equivalent, and return 1 if they are, or 0 if they are not.         You can only return 0 or 1.
+        Instruct: Answer as less as possible. Please determine whether a pair of questions above in Prompt are semantically equivalent, and return 1 if they are, or 0 if they are not.         You can only return 0 or 1.
         """
     elif key == "mnli":
         template[key]="""
         Prompt: "{input}"
-        Instruct: From the above premise sentence and hypothesis sentence in Prompt, Please determine the relationship between the two. The options are: 0 if the premise entails the hypothesis. 1 if the relationship is neutral. 2 if the hypothesis contradicts the premise.        Here are your sentences to evaluate: Premise: [Insert Premise Sentence Here] & Hypothesis: [Insert Hypothesis Sentence Here]
+        Instruct: Answer as less as possible. From the above premise sentence and hypothesis sentence in Prompt, Please determine the relationship between the two. The options are: 0 if the premise entails the hypothesis. 1 if the relationship is neutral. 2 if the hypothesis contradicts the premise.        Here are your sentences to evaluate: Premise: [Insert Premise Sentence Here] & Hypothesis: [Insert Hypothesis Sentence Here]
     """
     elif key=="qnli":
         template[key] = """
         Prompt: "{input}"
-        Instruct: From the above question and sentence in Prompt, Please determine whether the sentence contains the answer to the question. The options are: 0 if the sentence contains the answer. 1 if the sentence does not contains the answer.        Here are your sentences to evaluate: question: [Insert Question Here] & sentence: [Insert Sentence Here]. No analyses or explanations. Only respond with 0, 1, or 2.
+        Instruct: Answer as less as possible. From the above question and sentence in Prompt, Please determine whether the sentence contains the answer to the question. The options are: 0 if the sentence contains the answer. 1 if the sentence does not contains the answer.        Here are your sentences to evaluate: question: [Insert Question Here] & sentence: [Insert Sentence Here]. No analyses or explanations. Only respond with 0, 1, or 2.
         """
     elif key=="rte":
         template[key] ="""
         Prompt: "{input}"
-        Instruct: From the above two sentences in Prompt, Please determine whether two sentences are entailments. The options are: 0 if the sentences are entailments. 1 if the sentences are not entailments.           Here are your sentences to evaluate: sentence1: [Insert Sentence Here] & sentence2: [Insert Sentence Here]. No analyses or explanations.Only respond with 0 or 1.
+        Instruct: Answer as less as possible. From the above two sentences in Prompt, Please determine whether two sentences are entailments. The options are: 0 if the sentences are entailments. 1 if the sentences are not entailments.           Here are your sentences to evaluate: sentence1: [Insert Sentence Here] & sentence2: [Insert Sentence Here]. No analyses or explanations.Only respond with 0 or 1.
         """
     elif key=="wnli":
         template[key] = """
         Prompt: "{input}"
-        Instruct: From the above question and sentence in Prompt, Please determine whether the sentences contain the answer to the question. The options are: 0 if the sentence contains the answer. 1 if the sentence does not contains the answer.    Here are your sentences to evaluate: question: [Insert Question Here] & sentences: [Insert Sentence Here]. No analyses or explanations. Only respond with 0 or 1.
+        Instruct: Answer as less as possible. From the above question and sentence in Prompt, Please determine whether the sentences contain the answer to the question. The options are: 0 if the sentence contains the answer. 1 if the sentence does not contains the answer.    Here are your sentences to evaluate: question: [Insert Question Here] & sentences: [Insert Sentence Here]. No analyses or explanations. Only respond with 0 or 1.
         """
 
 model_name = "Llama-3.1-8B-Instruct-AWQ-4bit-ONNX"
 model_path = f"/home/loong/桌面/Codes/Green_Halo/models/{model_name}"
 
-model = LLAMA(model_path, 2048)
+model = LLAMA(model_path, 16)
 
 # 初始化一个字典来存储每个任务的准确率
 accuracies = {}
@@ -142,28 +142,40 @@ for data_task in glue_tasks:
     data = datas[data_task]  # 获取该任务的数据列表，每个元素是一个包含'text'和'label'的字典
     chat_template = template[data_task]  # 获取该任务的模板
 
-    prompts = []
     labels = []
-    for item in data:
+    predictions = []
+    start_time = time.time()
+    for i, item in enumerate(data):
         text = item['text']
         label = item['label']
         labels.append(label)
-        prompts.append(text)
-    
-    predictions = []
-    start_time = time.time()
-    for i, prompt_text in enumerate(prompts):
         # 格式化提示
-        prompt = chat_template.format(input=prompt_text)
+        prompt = text
         # 运行模型
-        prediction = model.run(chat_template, prompt_text)
-        try:
-            pred_label = int(prediction)
-        except ValueError:
-            pred_label = -1  # 如果无法解析输出，设置为-1（表示无效的预测）
+        output = model.run(chat_template, prompt)
+        # 从输出字符串的头开始查找第一个'0'、'1'或'2'
+        pred_label = -1  # 默认值，表示未找到有效的预测
+        for ch in output:
+            if ch == '0':
+                pred_label = 0
+                break
+            elif ch == '1':
+                pred_label = 1
+                break
+            elif ch == '2':
+                pred_label = 2
+                break
+            elif ch in [' ', '\n', '\t']:
+                # 跳过空白字符
+                continue
+            else:
+                # 遇到非数字字符，继续查找
+                continue
+        print(pred_label)
         predictions.append(pred_label)
-
-    print(f"已评估完成{data_task}，耗时 {time.time() - start_time:.2f} 秒")
+        if (i+1) % 100 == 0:
+            elapsed = time.time() - start_time
+            print(f"已处理 {i+1} 个样本，耗时 {elapsed:.2f} 秒")
     # 计算准确率
     labels = labels[:len(predictions)]
     labels = np.array(labels)
