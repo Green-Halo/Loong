@@ -130,7 +130,7 @@ for key in glue_tasks:
         """
 
 model_name = "Llama-3.1-8B-Instruct-AWQ-4bit-ONNX"
-model_path = f"/home/loong/桌面/Codes/Green_Halo/models/{model_name}"
+model_path = f"models/{model_name}"
 
 model = LLAMA(model_path, 16)
 
